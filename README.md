@@ -2,7 +2,7 @@
 
 # Introduction
 
-> 이 튜토리얼은 [Amazon EKS로 웹 애플리케이션 구축하기 실습](https://aws-eks-web-application.workshop.aws/ko/)을 바탕으로 gitops pipeline 구성을 안내 합니다. 따라서 해당 실습의 [8.AWS Fargate 사용하기](https://aws-eks-web-application.workshop.aws/ko/80-fargate.html) 까지 완료한 상태에서 출발 합니다.
+> 이 튜토리얼은 [Amazon EKS로 웹 애플리케이션 구축하기 실습](https://aws-eks-web-application.workshop.aws/ko/)을 바탕으로 gitops pipeline 구성을 안내 합니다. 따라서 해당 실습의 [8.AWS Fargate 사용하기](https://aws-eks-web-application.workshop.aws/ko/80-fargate.html) 까지 완료한 상태에서 출발 합니다. 또한 모든 코드와 튜토리얼은 **Cloud9** 환경을 가정하고 있으므로 로컬PC 환경에서 실행할 경우 **_다랙토리_** 위치에 주의해야 합니다.
 
 이 튜토리얼은 **Github** 에 위치한 application 소스와 k8s manifests 의 변경 사항이 발생될 때 마다 자동으로 **Github Action** 을 통해서 빌드/통합(Continous Integration) 하고, 통합된 배포 대상을 **ArgoCD** 를 통해 k8s 클러스터에 배포(Continous Deployment) 하는 일종의 **gitops** 파이프라인을 만드는 과정을 안내 합니다. 이 때 k8s manifests를 통합/패키징 하는 도구로 **Kustomize**를 사용 합니다.
 
