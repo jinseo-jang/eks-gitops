@@ -1,28 +1,38 @@
 # Procedure to set up CI/CD with gitops concepts
 
-# Notice
+# Introduction
 
-> 이 튜토리얼은 [Amazon EKS로 웹 애플리케이션 구축하기 실습](https://aws-eks-web-application.workshop.aws/ko/)을 바탕으로 gitops pipeline 구성을 안내 합니다. 따라서 해당 실습의 [8.AWS Fargate 사용하기](https://aws-eks-web-application.workshop.aws/ko/80-fargate.html) 까지 완료해야 합니다.
+> 이 튜토리얼은 [Amazon EKS로 웹 애플리케이션 구축하기 실습](https://aws-eks-web-application.workshop.aws/ko/)을 바탕으로 gitops pipeline 구성을 안내 합니다. 따라서 해당 실습의 [8.AWS Fargate 사용하기](https://aws-eks-web-application.workshop.aws/ko/80-fargate.html) 까지 완료한 상태에서 출발 합니다.
 
-## 1. Create two githup repositories; App, K8S Manifests
+이 튜토리얼은 **Github** 에 위치한 application 소스와 k8s manifests 의 변경 사항이 발생될 때 마다 자동으로 **Github Action** 을 통해서 빌드/통합(Continous Integration) 하고, 통합된 배포 대상을 **ArgoCD** 를 통해 k8s 클러스터에 배포(Continous Deployment) 하는 일종의 **gitops** 파이프라인을 만드는 과정을 안내 합니다. 이 때 k8s manifests를 통합/패키징 하는 도구로 **Kustomize**를 사용 합니다.
+
+## Tools to be leveraged
+
+- **GitHub**
+- **GitHub Actions**
+- **Kustomize**
+- **ArgoCD**
+
+# 1. Create two githup repositories; App, K8S Manifests
 
 실습을 위해 두 개의 github 레파지토리가 필요 합니다.
 
 - Application 용 레파지토리: Frontend 소스가 위치한 레파지토리
 - K8S Manifests 용 레파지토리: K8S 관련 메니페스트가 위치한 레파지토리
 
-**(1)** **_front-app-repo_** 라는 이름으로 Application repository 생성
+## **(1)** **_front-app-repo_** 라는 이름으로 Application repository 생성
 
 ![CreateAppRepo](./images/create_app_repo.png)
 
-**(2)** git remote 설정을 위해, amazon-eks-frontend 디렉토리의 git 초기화
+## **(2)** git remote 설정을 위해, amazon-eks-frontend 디렉토리의 git 초기화
 
 ```bash
 cd ~/environment/amazon-eks-frontend
 rm -rf .git
 ```
 
-**(3)** git remote repo setup
+## **(3)** git remote repo setup
+
 **_front-app-repo_** 에 frontend 소스 코드를 push 합니다.
 
 ```bash
@@ -49,17 +59,17 @@ git config --global credential.helper 'cache --timeout TIME YOU WANT'
 
 > 만약 github MFA 인증을 사용 하고 있는 경우, personal access token을 만들어 password로 사용해야 할 수 있습니다. personal access token을 만드는 방법은 [다음 github 안내](https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token) 1-10을 따릅니다.(\*이 때 **Select scopes** 에서 **workflow**를 추가로 선택 합니다) 그리고 얻은 token 값을 push 과정에서 묻는 password 에 대한 응답으로 입력 하면 됩니다.
 
-## 2. Create IAM for CI/CD with least privileges
+# 2. Create IAM for CI/CD with least privileges
 
 front app 을 빌드 하고, docker 이미지로 만든 다음 이를 ECR 에 push 하는 과정은 gitHub Action을 통해 이루어 집니다. 이 과정에서 사용할 IAM User를 least privilege 를 준수하여 생성 합니다.
 
-**(1)** IAM user 생성
+## **(1)** IAM user 생성
 
 ```bash
 aws iam create-user --user-name github-action
 ```
 
-**(2)** ECR policy 생성
+## **(2)** ECR policy 생성
 
 생성할 policy 파일을 만듭니다.
 
@@ -102,18 +112,19 @@ EOF
 aws iam create-policy --policy-name ecr-policy --policy-document file://ecr-policy.json
 ```
 
-**(3)** ECR policy를 IAM user에 부여
+## **(3)** ECR policy를 IAM user에 부여
+
 생성한 ecr-policy를 새로 생성한 IAM user 에게 할당 합니다.
 
 ```bash
 aws iam attach-user-policy --user-name github-action --policy-arn arn:aws:iam::${ACCOUNT_ID}:policy/ecr-policy
 ```
 
-## 3. Set up githup secrets(AWS Credential, githup token)
+# 3. Set up githup secrets(AWS Credential, githup token)
 
 github action 에서 사용할 AWS credential, github token을 생성하고, 설정 합니다.
 
-**(1)** AWS Credential 생성
+## **(1)** AWS Credential 생성
 
 github action이 빌드된 front app 을 docker image 로 만들어 ECR로 push 합니다. 이 과정에서 AWS credential 을 사용 합니다. 이를 위해 앞서 `github-action`이라는 별도의 least privilege 를 갖는 IAM User를 생성 했습니다. 이제 이 User의 Access Key, Secret Key를 생성 합니다.
 
@@ -135,7 +146,7 @@ aws iam create-access-key --user-name github-action
 }
 ```
 
-**(2)** github personal token 생성
+## **(2)** github personal token 생성
 
 github.com 로그인 후 User profile > Settings > Developer settings > Personal access tokens 으로 이동 합니다.
 그리고 우측 상단에 위치한 Generate new token을 선택 합니다.
@@ -148,7 +159,7 @@ Note 에 `access token for github action` 라 입력 하고 **Select scopes** �
 
 ![Copy Access Token](./images/copy_token.png)
 
-**(3)** Set up github secret
+## **(3)** Set up github secret
 
 **front-app-repo** 레파지토리로 돌아가 **Settings > Secrets** 을 선택 합니다. 그리고 이어 화면 우측 상단의 **New repository secret** 을 클릭 합니다.
 
@@ -164,16 +175,16 @@ Note 에 `access token for github action` 라 입력 하고 **Select scopes** �
 
 ![Aws Secret Access Key Secret](./images/aws_secret_access_key.png)
 
-## 4. Create build script for githup action
+# 4. Create build script for githup action
 
-**(1)** create .github folder for github action
+## **(1)** create .github folder for github action
 
 ```bash
 cd ~/environment/amazon-eks-frontend
 mkdir -p ./.github/workflows
 ```
 
-**(2)** Crate build.yaml to be used to execute github action job
+## **(2)** Crate build.yaml to be used to execute github action job
 
 front app 을 checkout 하고, build 한 다음, docker container 로 만들어 ECR 로 push 하는 과정을 담고 있는 github action build 스크립트를 작성 합니다.
 
@@ -237,7 +248,7 @@ jobs:
 EOF
 ```
 
-**(3)** push code to front-app-repo
+## **(3)** Push code to front-app-repo
 
 이제 코드를 front-app-repo 로 push 하여 github action workflow를 동작 시킵니다. 위에서 작성한 build.yaml 을 기반으로 github action이 동작 합니다.
 
@@ -259,7 +270,7 @@ sha 값의 일부가 포함된 Image Tag로 push 된 이미지가 확인 됩니�
 
 ![New Image Tag Pushed](./images/new_image_tag.png)
 
-## 5. Kustomize Overview
+# 5. Kustomize Overview
 
 Kustomize 는 쿠버네티스 manifest 를 사용자 입맛에 맞도록 정의 하는데 도움을 주는 도구 입니다. 여기서 "사용자 입맛에 맞도록 정의"에 포함 되는 경우는, 모든 리소스에 동일한 네임스페이스를 정의 하거나, 동일한 네임 접두사/접미사를 준다거나, 동일한 label 을 주거나, 이미지 태그 값을 변경 하는 것들이 있을 수 있습니다.
 
@@ -267,9 +278,9 @@ Kustomize 는 쿠버네티스 manifest 를 사용자 입맛에 맞도록 정의 
 
 Kustomize 에 관한 자세한 내용은 [다음](https://kustomize.io/)을 참고 하세요.
 
-## 6. Structure Kubernetes manifest directory to be used with Kustomize
+# 6. Structure Kubernetes manifest directory to be used with Kustomize
 
-**(1)** Create directories
+## **(1)** Create directories
 
 Kubernetes manifest 들은 이제 별도의 독립된 github repository를 갖게 될겁니다. 그리고 Kustomize를 통해 manifest 들을 구성 할 겁니다. 따라서 이를 위해 디렉토리 구조를 만듭니다.
 
@@ -378,9 +389,9 @@ EOF
 
 이상 -patch.yaml 파일에 정의한 내용들은 배포 과정에서 kustomize 에 의해 자동으로 kubernetes manifest 에 반영 됩니다.
 
-## 6. Create github repository for kubernetes manifests
+# 6. Create github repository for kubernetes manifests
 
-**(1)** Create github repository for kubernetes manifests
+## **(1)** Create github repository for kubernetes manifests
 
 **k8s-manifest-repo** 라는 이름의 github repository를 생성 합니다. 앞서 만든 kubernetes manifests 들이 위치할 공간 입니다.
 
@@ -398,9 +409,9 @@ git remote add origin https://github.com/jinseo-jang/k8s-manifest-repo.git
 git push -u origin main
 ```
 
-## 7. Install ArgoCD in eks cluster
+# 7. Install ArgoCD in eks cluster
 
-**(1)** Install ArgoCD in eks cluster
+## **(1)** Install ArgoCD in eks cluster
 
 다음을 실행 하여 ArgoCD를 eks cluster 에 설치 합니다.
 
@@ -444,7 +455,9 @@ echo $ARGO_PWD
 
 ![ArgoCD Login](./images/argocd_login.png)
 
-## 8. Configure ArgoCD in eks cluster
+# 8. Configure ArgoCD
+
+## **(1)** Configure ArgoCD
 
 로그인 이후 좌측 메뉴에서 애플리케이션 설정 메뉴를 클릭 합니다.
 
@@ -466,9 +479,11 @@ echo $ARGO_PWD
 
 ![ArgoCD Pipeline](./images/argocd_pipeline.png)
 
-## 9. Manipulate githup action build script
+# 9. Add Kustomize build step to githup action build script
 
-**(1)** 앞서 생성한 github action build 스크립트에 kustomize를 이용하여 컨테이너 image tag 정보를 업데이트 한 후 `k8s-manifest-repo`에 commit/push 하는 단계를 추가 해야 합니다.
+## **(1)** Modify gihub action build script
+
+앞서 생성한 github action build 스크립트에 kustomize를 이용하여 컨테이너 image tag 정보를 업데이트 한 후 `k8s-manifest-repo`에 commit/push 하는 단계를 추가 해야 합니다.
 
 추가된 단계가 정상적으로 동작 하면, **ArgoCD**가 `k8s-manifest-repo`를 지켜 보고 있다가 새로운 변경 사항이 발생 되었음을 알아채고, **kustomize build** 작업을 수행하여 새로운 **kubernetes manifest** (\*새로운 image tag를 포함한)를 eks 클러스터에 배포 합니다.
 
@@ -507,7 +522,7 @@ cat <<EOF>> build.yaml
 EOF
 ```
 
-**(2)** commit&push new code to front-app-repo
+## **(2)** commit&push new code to front-app-repo
 
 이제 새로운 `build.yaml`을 `front-app-repo`로 push 하여 github action job 을 실행 합니다.
 
@@ -518,19 +533,19 @@ git commit -m "Add kustomize image edit"
 git push -u origin main
 ```
 
-**(3)** Check github action
+## **(3)** Check github action
 
 github action 화면으로 돌아가 job 이 정상 수행 되는지 확인 합니다.
 
 ![Github Action Build](./images/githubaction_build.png)
 
-**(4)** Check k8s-manifest-repo
+## **(4)** Check k8s-manifest-repo
 
 `k8s-manifest-repo` 의 commit 상태를 확인 합니다. 아래와 같이 **github-actions** 에 의한 commit 이 확인 됩니다.
 
 ![Check Commit](./images/check_commit.png)
 
-**(5)** Check ArgoCD
+## **(5)** Check ArgoCD
 
 ArgoCD 화면으로 돌아가 배포 상태를 확인 합니다. **Applications > eksworkshop-cd-pipeline** 으로 이동 하여 확인 해보면 **CURRENT SYNC STATUS**의 값이 **Out of Synced** 입니다.
 
@@ -555,11 +570,11 @@ git repository 가 변경되면 자동으로 sync 작업이 수행 하도록 하
 
 앞으로 `k8s-manifest-repo`의 commit 이 발생할때 마다 ArgoCD가 이를 eks 클러스터에 배포할 것입니다.
 
-## 10. Change frontend application
+# 10. Change frontend application
 
 실제로 frontend application 코드를 변경하여 앞서 만든 gitops pipeline 이 정상적으로 구동되는지 확인 합니다.
 
-**(1)** Modify frontend application source code
+## **(1)** Modify frontend application source code
 
 **Cloud9** 으로 이동해, 좌측 폴더 구조에서 **amazon-eks-frontend/src/** 로 이동하여 **`App.js`** 더블 클릭하여 파일을 오픈 합니다.
 
@@ -586,7 +601,7 @@ git repository 가 변경되면 자동으로 sync 작업이 수행 하도록 하
       <br/>
 ```
 
-**(2)** commit&push
+## **(2)** commit&push
 
 변경 코드를 git repository 에 commit&push 합니다.
 
@@ -597,7 +612,7 @@ git commit -m "Add new blog version"
 git push -u origin main
 ```
 
-**(3)** Check gitops pipeline and frontend application
+## **(3)** Check gitops pipeline and frontend application
 
 소스 commit/push 이후 **github action(build) > ArgoCD(deploy)** 작업이 순서대로 동작 합니다.
 
