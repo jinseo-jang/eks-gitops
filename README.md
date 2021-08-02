@@ -629,3 +629,5 @@ echo http://$(kubectl get ingress/backend-ingress -o jsonpath='{.status.loadBala
 새로운 변경 사항이 반영된 블로그가 확인 됩니다.
 
 ![New Blog Version](./images/new_blog_version.png)
+
+[Lab 1 이어 하기](Lab1.md)
