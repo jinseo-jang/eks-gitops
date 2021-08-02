@@ -2,16 +2,16 @@
 
 ## Overview
 
-k8s manifest 를 배포 하기 전에 [**Checkov**](https://github.com/bridgecrewio/checkov)를 이용하여 k8s manifest 가 security, misconfiguration 관점에서 문제가 없는지 검사하는 단계를 ci/cd 파이프라인에 추가 한다.
+k8s manifest 를 배포 하기 전에 [**Checkov**](https://github.com/bridgecrewio/checkov)를 이용하여 k8s manifest 가 security, misconfiguration 관점에서 문제가 없는지 검사하는 단계를 ci/cd 파이프라인에 추가 합니다.
 
-이를 위해 ArgoCD가 k8s manifest repo를 watch 하고 있다가 변경 사항이 발생하면 CD 작업이 시작 되던 기존 방식을 다음과 같이 변경 한다.
+이를 위해 ArgoCD가 k8s manifest repo를 watch 하고 있다가 변경 사항이 발생하면 CD 작업이 시작 되던 기존 방식을 다음과 같이 변경 합니다.
 
     (1). application repo 변경 작업이 발생 되고 새로운 docker image 가 생성 되며 이어 새로운 image tag 값이 k8s manifest repo에 commit 된다.
     (2). k8s manifest repo에 새로운 image tag 값이 commit 되면 kustomize 를 이용해 최종 k8s manifest를 생성 한다(kustomize build)
     (3). 생성된 최종 k8s manifests에 대해 Checkov 를 통해 정적 코드 분석 작업을 수행 한다.
     (4). 분석 작업 결과에 문제가 없으면 ArgoCD application 의 Sync 작업을 시작 한다.
 
-위 각 단계는 다음에서 수행 된다.
+위 네 단계는 다음의 repository 에서 수행 됩니다.
 
 - (1) : **Application repository** 의 **github Action**
 - (2)~(4) : **k8s manifest repository** 의 **github Action**
@@ -316,4 +316,4 @@ git push -u origin main
 echo http://$(kubectl get ingress/backend-ingress -o jsonpath='{.status.loadBalancer.ingress[*].hostname}')
 ```
 
-새로운 변경 사항이 반영된 블로그가 **_EKS DEMO Blog version 2_** 라는 메인 타이틀로 확인 됩니다.
+새로운 변경 사항이 반영된 블로그가 **_EKS DEMO Blog version 2_** 라는 메인 타이틀과 함께 확인 됩니다.
