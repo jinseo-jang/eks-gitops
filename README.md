@@ -6,6 +6,8 @@
 
 이 튜토리얼은 **Github** 에 위치한 application 소스와 k8s manifests 의 변경 사항이 발생될 때 마다 자동으로 **Github Action** 을 통해서 빌드/통합(Continous Integration) 하고, 통합된 배포 대상을 **ArgoCD** 를 통해 k8s 클러스터에 배포(Continous Deployment) 하는 일종의 **gitops** 파이프라인을 만드는 과정을 안내 합니다. 이 때 k8s manifests를 통합/패키징 하는 도구로 **Kustomize**를 사용 합니다.
 
+![gitops](./images/gitops.png)
+
 ## Tools to be leveraged
 
 - **GitHub**
