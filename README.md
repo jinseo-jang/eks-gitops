@@ -228,7 +228,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Get image tag(verion)
+      - name: Get image tag(version)
         id: image
         run: |
           VERSION=\$(echo \${{ github.sha }} | cut -c1-8)
